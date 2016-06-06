@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
 
 # Name: GenPro_download_ucsc_data
 #
@@ -12,6 +12,8 @@
 use 5.10.0;
 use strict;
 use warnings;
+
+use Data::Dump qw/ dump /;
 use Getopt::Long;
 use Path::Tiny;
 use IO::Uncompress::Gunzip qw/ $GunzipError /;
@@ -39,7 +41,7 @@ my @snp_fields = qw/ bin chrom chromStart chromEnd name score strand refNCBI
   refUCSC observed molType class valid avHet avHetSE func locType weight
   exceptions submitterCount submitters alleleFreqCount alleles alleleNs
   alleleFreqs bitfields/;
-my @knownGene_fields = qw/ name chrom strand txStart txEmd cdsStart cdsEnd
+my @knownGene_fields = qw/ name chrom strand txStart txEnd cdsStart cdsEnd
   exonCount exonStarts exonEnds proteinID alignID/;
 my @refGene_fields = qw/bin name chrom strand txStart txEnd cdsStart cdsEnd
   exonCount exonStarts exonEnds score name2 cdsStartStat cdsEndStat exonFrames/;
@@ -60,7 +62,7 @@ my %fields_for_set = (
 # knownGene fields so they can be processed in the same manner
 my @wanted_snp_fields = qw/ chrom chromStart chromEnd name alleleFreqCount
   alleles alleleNs alleleFreqs/;
-my @wanted_knowGene_fields = qw/ chrom strand txStart txEmd cdsStart cdsEnd
+my @wanted_knowGene_fields = qw/ chrom strand txStart txEnd cdsStart cdsEnd
   exonCount exonStarts exonEnds name /;
 my @wanted_refGene_fields = qw/ chrom strand txStart txEnd cdsStart cdsEnd
   exonCount exonStarts exonEnds name /;
@@ -218,11 +220,6 @@ sub procCrossRef {
   while (<$z>) {
     chomp $_;
     my @fields = split /\t/, $_;
-
-    if ( scalar keys %header != scalar @fields ) {
-      die "Error: Expected and observed fields do not match for cross ref data.";
-    }
-
     my %data = map { $_ => $fields[ $header{$_} ] } ( keys %header );
     my @out_data = map { $data{$_} } (@wanted_kgXref_fields);
     $info_for_gene{ $data{$wanted_col} } = join ";", @out_data;
