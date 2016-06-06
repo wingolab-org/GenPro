@@ -1,2 +1,2 @@
 #!/bin/sh
-./GenPro_create_db.pl --g hg38 --c ${SGE_TASK_ID} --genedir hg38/gene --geneset knownGene -f hg38/chr -o hg38/idx -v &> hg38.chr${SGE_TASK_ID}.idxBuild.log
+GenPro_create_db.pl --g ${1} --c ${SGE_TASK_ID} --genedir ${1}/gene --geneset knownGene -f ${1}/chr -o ${1}/idx -v &> ${1}.${SGE_TASK_ID}.idxBuild.log
