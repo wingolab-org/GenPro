@@ -25,9 +25,9 @@ my $max_peptide_length = 40;
 my $trim_end_regex     = qr{\*[\*\w]*\z};
 
 my (
-  %refprots,     %trpPepDb,   %hIUPAC,    $id,      $dir_db,
-  $dir_ref_prot, $dir_out,    $snp_file,  $verbose, $wantedIdFile,
-  $wanted_chr,   $idListFile, $outDbName, $idListAref,
+  %refprots,     %trpPepDb,   %hIUPAC,    $id,         $dir_db,
+  $dir_ref_prot, $dir_out,    $snp_file,  $verbose,    $wantedIdFile,
+  $wanted_chr,   $idListFile, $outDbName, $idListAref, $debug,
 );
 
 tie %trpPepDb, 'DB_File', Path::Tiny->tempfile->stringify();
@@ -85,6 +85,7 @@ die "Usage: $0
   'n|name=s'    => \$outDbName,
   'max=n'       => \$max_peptide_length,
   'min=n'       => \$min_peptide_length,
+  'debug'       => \$debug,
   )
   and $dir_db
   and $dir_ref_prot
@@ -125,9 +126,19 @@ else {
     $outDbName = $id;
   }
 }
-Log("Started creating personal protein entries for $id");
+Log(
+  sprintf(
+    "Started creating personal protein entries for %s",
+    join ", ", @$idListAref
+  )
+);
 MakeVarProt( $path_db, $path_out, $idListAref, $outDbName );
-Log("Finished creating personal protein entries for $id");
+Log(
+  sprintf(
+    "Finished creating personal protein entries for  %s",
+    join ", ", @$idListAref
+  )
+);
 
 # MakeVarProt takes the path to the personal db and id and creates a personal
 # protein database for the id; it optionally takes a list of aceptable
@@ -495,7 +506,7 @@ sub ReadPerDb {
 
   my $file = $path->child("$id.$chr.db");
   if ( !$file->is_file() ) {
-    Log("Skipping $chr - Cannot find $id.$chr.db");
+    Log( "Warn", "Skipping $chr - Cannot find $id.$chr.db" );
     return \@records;
   }
 
@@ -708,9 +719,10 @@ sub WritePerProt {
     my ( $seq, $entry_str ) =
       recToFastaEntry( $refprots{$protId}, \@notInHeader, $sep_char );
     if ( exists $prnSeq{$seq} ) {
-      my $msg = sprintf( "Exact protein previously found in '%s' for '%s'... skipping.",
+      my $msg = sprintf(
+        "Exact _reference_ protein previously found in '%s' for '%s'... skipping.",
         $prnSeq{$seq}, $protId );
-      Log($msg);
+      Log( "Debug", $msg );
       next;
     }
     # print entry
@@ -724,7 +736,8 @@ sub WritePerProt {
   for my $r_href (@$recs_aref) {
     my ( $seq, $entry_str ) = recToFastaEntry( $r_href, \@notInHeader, $sep_char );
     if ( exists $prnSeq{$seq} ) {
-      my $msg = sprintf( "Exact protein previously found in '%s' for '%s'... skipping.",
+      my $msg =
+        sprintf( "Exact _variant_ protein previously found in '%s' for '%s'... skipping.",
         $prnSeq{$seq}, $r_href->{id} );
       Log($msg);
       next;
@@ -885,7 +898,9 @@ sub BlockCutAa {
 
 # Log takes and array of strings and uses the first element to handle the
 # message reporting - 1) Error, probably a user/input error (print and exit),
-# 2) Fatal - probably an internal error, print and croak, 3) Anything else
+# 2) Fatal - probably an internal error, print and croak, 3) Debug is
+# something that is printed if the global debug is true, and 4) Warn prints
+# a message to standard out regardless of the level of verbosity. Anything else
 # will be printed depending on whether the gloabal verbose value is set.
 sub Log {
   my $type = shift;
@@ -898,8 +913,18 @@ sub Log {
     my $msg = join ": ", $type, ( join " ", @_ );
     croak $msg;
   }
+  elsif ( $type eq 'Warn' ) {
+    my $msg = join ": ", $type, ( join " ", @_ );
+    say STDERR $msg;
+  }
   elsif ( $type eq 'Info' ) {
     if ($verbose) {
+      my $msg = join ": ", $type, ( join " ", @_ );
+      say STDERR $msg;
+    }
+  }
+  elsif ( $type eq 'Debug' ) {
+    if ($debug) {
       my $msg = join ": ", $type, ( join " ", @_ );
       say STDERR $msg;
     }
