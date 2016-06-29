@@ -16,6 +16,7 @@ use DB_File;
 use Digest::SHA qw/sha1_hex/;
 use Getopt::Long;
 use Path::Tiny;
+use Scalar::Util qw/reftype/;
 
 our $VERSION = '0.01';
 
@@ -24,8 +25,9 @@ my $max_peptide_length = 40;
 my $trim_end_regex     = qr{\*[\*\w]*\z};
 
 my (
-  %refprots, %trpPepDb, %hIUPAC,  $id,           $dir_db, $dir_ref_prot,
-  $dir_out,  $snp_file, $verbose, $wantedIdFile, $wanted_chr,
+  %refprots,     %trpPepDb,   %hIUPAC,    $id,      $dir_db,
+  $dir_ref_prot, $dir_out,    $snp_file,  $verbose, $wantedIdFile,
+  $wanted_chr,   $idListFile, $outDbName, $idListAref,
 );
 
 tie %trpPepDb, 'DB_File', Path::Tiny->tempfile->stringify();
@@ -69,6 +71,8 @@ die "Usage: $0
     --d|db <personal db directory>
     --i|id <sample id>
     --o|out <output directory>
+    [--list <file with Ids>]
+    [--name <output database name, defaults to id]
     [--max <max peptide length, default: $max_peptide_length>]
     [--min <min peptide length, default: $min_peptide_length>]\n"
   unless GetOptions(
@@ -77,13 +81,15 @@ die "Usage: $0
   'r|ref=s'     => \$dir_ref_prot,
   'o|dir_out=s' => \$dir_out,
   'i|id=s'      => \$id,
+  'l|list=s'    => \$idListFile,
+  'n|name=s'    => \$outDbName,
   'max=n'       => \$max_peptide_length,
   'min=n'       => \$min_peptide_length,
   )
   and $dir_db
   and $dir_ref_prot
   and $dir_out
-  and $id;
+  and ( ( $idListFile and $outDbName ) or $id );
 
 # check - output directory
 my $path_out = path($dir_out);
@@ -109,8 +115,18 @@ ReadRefProt($path_ref_prot);
 Log( "Finished reading reference protein entries", $path_ref_prot->stringify() );
 
 # make varaint proteins
+
+if ( defined $idListFile ) {
+  $idListAref = readIdList($idListFile);
+}
+else {
+  $idListAref = [$id];
+  if ( !defined $outDbName ) {
+    $outDbName = $id;
+  }
+}
 Log("Started creating personal protein entries for $id");
-MakeVarProt( $path_db, $path_out, $id );
+MakeVarProt( $path_db, $path_out, $idListAref, $outDbName );
 Log("Finished creating personal protein entries for $id");
 
 # MakeVarProt takes the path to the personal db and id and creates a personal
@@ -119,7 +135,8 @@ Log("Finished creating personal protein entries for $id");
 sub MakeVarProt {
   my $path_db    = shift;
   my $path_out   = shift;
-  my $id         = shift;
+  my $idListAref = shift;
+  my $outDbName  = shift;
   my $okChrsAref = shift;
 
   my @records;
@@ -133,31 +150,57 @@ sub MakeVarProt {
     $okChrsAref = \@chrs;
   }
 
-  # read data for each chromosome
-  for my $chr (@$okChrsAref) {
-    Log("Working on Chr: $chr");
-    my $per_rec_aref = ReadPerDb( $path_db, $id, $chr );
-    Log( "Read Tx from db: ", scalar @$per_rec_aref );
+  for my $id (@$idListAref) {
+    # read data for each chromosome
+    for my $chr (@$okChrsAref) {
+      Log("Working on Chr: $chr");
+      my $per_rec_aref = ReadPerDb( $path_db, $id, $chr );
+      Log( "Read Tx from db: ", scalar @$per_rec_aref );
 
-    for my $per_rec_href (@$per_rec_aref) {
-      Log( "Working on", $per_rec_href->{name} );
+      for my $per_rec_href (@$per_rec_aref) {
+        Log( "Working on", $per_rec_href->{name} );
 
-      # generate all permutations
-      my $var_prot_aref = var_prot_for_tx($per_rec_href);
-      #say dump( { before => $var_prot_aref } );
+        # generate all permutations
+        my $var_prot_aref = var_prot_for_tx($per_rec_href);
+        #say dump( { before => $var_prot_aref } );
 
-      # select the most informative entries
-      $var_prot_aref = select_entries($var_prot_aref);
-      #say dump({ after => $var_prot_aref });
-      for my $r_href (@$var_prot_aref) {
-        my $final_href = create_per_prot_rec( $r_href, $per_rec_href, $field_sep_char );
-        push @records, $final_href;
+        # select the most informative entries
+        $var_prot_aref = select_entries($var_prot_aref);
+        #say dump({ after => $var_prot_aref });
+        for my $r_href (@$var_prot_aref) {
+          my $final_href = create_per_prot_rec( $r_href, $per_rec_href, $field_sep_char );
+          push @records, $final_href;
+        }
       }
     }
   }
+
   Log("Started writing personal protein entries");
-  WritePerProt( $id, $path_out, \@records, $rec_sep_char );
+  WritePerProt( $outDbName, $path_out, \@records, $rec_sep_char );
   Log("Finished writing personal protein entries");
+}
+
+# readIdList takes a file and reads the contents, assuming the 1st column is
+# the id of interest. A unique list of ids is made and returned as an array
+# reference
+sub readIdList {
+  my $file = shift;
+  my $p    = path($file);
+
+  my %ids;
+
+  if ( !$p->is_file() ) {
+    Log( "Fatal", sprintf( "%s does not exist", $p->stringify() ) );
+  }
+
+  my $fh = $p->filehandle();
+  while (<$fh>) {
+    chomp $_;
+    my @f = split /\s+/, $_;
+    $ids{ $f[0] }++;
+  }
+  close $fh;
+  return [ sort keys %ids ];
 }
 
 # create_per_prot_rec takes a personal protein and personal variatn record and
