@@ -79,12 +79,12 @@ server.
   - Use `GenPro_create_db.pl`.
   - There are helper scripts `sh/runall_create_db.sh` that work with SGE to
   build all chromosomes on a cluster with SGE.
-    - e.g., `qsub -v USER -v PATH -cwd -t 1-26 seqant_gen_bin.sh <genome>`
-  - Alternatively, iterate over all the chromosomes:
+    - e.g., `qsub -v USER -v PATH -cwd -t 1-26 runall_create_db.sh <genome>`
+  - Alternatively, iterate over all the chromosomes, for hg38:
 
 ```
 for ((i=1;i<27;i++)); do
-  ./create_db --g hg38 -c $i --genedir local_hg38/gene --geneset knownGene -f local_hg38/chr -o hg38/idx;
+  GenPro_create_db.pl -a -g hg38 -c $i --genedir local_hg38/gene --geneset knownGene -f local_hg38/chr -o hg38/idx;
 done;
 ```
 
