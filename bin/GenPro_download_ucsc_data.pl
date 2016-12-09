@@ -77,7 +77,7 @@ my %wanted_fields_for_set = (
 
 # make base directories
 my $db_dir = path($dir_name);
-if ( !$db_dir->is_dir ) {
+if ( !$db_dir->is_dir && $act ) {
   $db_dir->mkpath;
 }
 
@@ -86,24 +86,39 @@ my $opt = GetRsyncFlags( $act, $verbose );
 
 # sequence data, per chromosome fasta
 dlFromUcsc( $genome_name, $opt, $db_dir->child("chr"), 'chromosomes/chr*.fa.gz' );
-procFasta( $genome_name, $db_dir->child("chr"), \@chrs );
+if ($act) {
+  procFasta( $genome_name, $db_dir->child("chr"), \@chrs );
+}
+else {
+  say "... dry run. use --act to download and process";
+}
 
 # cross ref stuff
 dlFromUcsc( $genome_name, $opt, $db_dir->child("crossRef"),
   "database/kgXref.txt.gz" );
 
 # gene data, per genome sql dump
-my $gene_set = "knownGene";
-#my $gene_set = "refGene";
+#my $gene_set = "knownGene";
+my $gene_set = "refGene";
 dlFromUcsc( $genome_name, $opt, $db_dir->child("gene"),
   "database/$gene_set.txt.gz" );
-procGeneSnp( $genome_name, $gene_set, $db_dir->child("gene"),
-  \@chrs, $db_dir->child("crossRef/kgXref.txt.gz") );
+if ($act) {
+  procGeneSnp( $genome_name, $gene_set, $db_dir->child("gene"),
+    \@chrs, $db_dir->child("crossRef/kgXref.txt.gz") );
+}
+else {
+  say "... dry run. use --act to download and process";
+}
 
 # snp data, per genome sql dump
-my $snp_set = "snp146";
-#dlFromUcsc( $genome_name, $opt, $db_dir->child("snp"), "database/$snp_set.txt.gz" );
-#procGeneSnp( $genome_name, $snp_set, $db_dir->child("snp"), \@chrs );
+my $snp_set = "snp148";
+dlFromUcsc( $genome_name, $opt, $db_dir->child("snp"), "database/$snp_set.txt.gz" );
+if ($act) {
+  procGeneSnp( $genome_name, $snp_set, $db_dir->child("snp"), \@chrs );
+}
+else {
+  say "... dry run. use --act to download and process";
+}
 
 sub dlFromUcsc {
   my $genome     = shift;
