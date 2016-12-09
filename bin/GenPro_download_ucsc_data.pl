@@ -111,7 +111,7 @@ else {
 }
 
 # snp data, per genome sql dump
-my $snp_set = "snp148";
+my $snp_set = "snp146";
 dlFromUcsc( $genome_name, $opt, $db_dir->child("snp"), "database/$snp_set.txt.gz" );
 if ($act) {
   procGeneSnp( $genome_name, $snp_set, $db_dir->child("snp"), \@chrs );
