@@ -1,0 +1,196 @@
+#!/usr/bin/env perl
+# Name:           vcfToSnp
+# Date Created:   2017-02-11T15:24:35
+# Date Modified:  2017-02-11T15:24:35
+# By:             TS Wingo
+#
+# Description:
+
+use 5.10.0;
+use warnings;
+use strict;
+use Getopt::Long;
+
+our $VERSION = '0.01';
+
+# variables
+my %iupac = (
+  K => [ "G", "T" ],
+  M => [ "A", "C" ],
+  R => [ "A", "G" ],
+  S => [ "C", "G" ],
+  W => [ "A", "T" ],
+  Y => [ "C", "T" ],
+  A => [ "A", "A" ],
+  C => [ "C", "C" ],
+  G => [ "G", "G" ],
+  T => [ "T", "T" ],
+);
+
+# bcftools query -H -f '%CHROM\t%POS\t%REF\t%ALT\t%TYPE[\t%IUPACGT]\n'
+
+###############################################################################
+# main
+###############################################################################
+
+my $help;
+
+# get options
+GetOptions( 'help|h' => \$help, );
+
+if ($help) {
+  usage();
+  exit;
+}
+
+vcfToSnp();
+
+###############################################################################
+# subroutines
+###############################################################################
+
+sub usage {
+  my $msg = q{
+Description
+  'vcfToSnp' reads from STDIN vcf files processed by bcftools to a snpfile
+
+Example Usage
+  bcftools query -H -f '%CHROM\\t%POS\\t%REF\\t%ALT\\t%TYPE[\\t%IUPACGT]\\n' file.vcf | vcfToSnp > file.snp";
+};
+  say $msg;
+}
+
+sub vcfToSnp {
+
+  my $fh     = *STDIN;
+  my $header = <$fh>;
+  chomp $header;
+  my @headerCols = split "\t", $header;
+  print "Fragment\tPosition\tReference\tAlleles\tAllele_Counts\tType";
+  for ( my $i = 5; $i < @headerCols; $i++ ) {
+    print "\t$headerCols[$i]\t";
+  }
+  print "\n";
+
+  while (<$fh>) {
+    chomp $_;
+    my @fields = split "\t", $_;
+    if ( $fields[4] eq "SNP" || $fields[3] eq "MNP" ) {
+      my %alleleCount;
+      for ( my $i = 5; $i < @fields; $i++ ) {
+        my $allelesAref = $iupac{ $fields[$i] };
+        if ( defined $allelesAref ) {
+          for my $a (@$allelesAref) {
+            $alleleCount{$a}++;
+          }
+        }
+      }
+      my @alleles = sort keys %alleleCount;
+      my @aCounts = map { $alleleCount{$_} } @alleles;
+      print join "\t", @fields[ 0 .. 2 ], join( ",", @alleles ), join( ",", @aCounts ),
+        $fields[4];
+      for ( my $i = 5; $i < @fields; $i++ ) {
+        print "\t$fields[$i]\t1";
+      }
+      print "\n";
+    }
+    elsif ( $fields[4] eq "INDEL" ) {
+      # will not handle: 22	17139233	GTATGCA	GTGCA,G	INDEL
+      my %typeForSite;
+      my @newAlleles;
+      my $ref     = $fields[2];
+      my @alts    = split ",", $fields[3];
+      my $lenRef  = length $ref;
+      my @lenAlts = map { length $_ } @alts;
+      my ( %alleleToName, %alleleCount );
+
+      for ( my $i = 0; $i < @lenAlts; $i++ ) {
+        if ( $lenRef > $lenAlts[$i] ) {
+          $typeForSite{DEL}++;
+        }
+        elsif ( $lenRef < $lenAlts[$i] ) {
+          $typeForSite{INS}++;
+        }
+        else {
+          die "Error: This is not an indel: $_";
+        }
+      }
+
+      my ( $type, $minorAllele ) = getType( \%typeForSite, $ref, \@alts );
+      if ( !defined $type ) {
+        say STDERR "Error: Found evidence for del and ins at site: $_";
+        next;
+      }
+      if ( $type eq "DEL" ) {
+        my @refStr = split '', $ref;
+        for ( my $i = 0; $i < @alts; $i++ ) {
+          $alleleToName{ $alts[$i] } = "-" . ( $lenRef - $lenAlts[$i] );
+          $alleleToName{$ref} = $refStr[0];
+        }
+        $ref = $refStr[0];
+      }
+      else {
+        for ( my $i = 0; $i < @alts; $i++ ) {
+          $alleleToName{ $alts[$i] } = "+" . $alts[$i];
+          $alleleToName{$ref} = $ref;
+        }
+      }
+
+      for ( my $i = 5; $i < @fields; $i++ ) {
+        my @sampleAlleles = split /\|/, $fields[$i];
+        my $refCount = 0;
+        for my $a (@sampleAlleles) {
+          $alleleCount{$a}++;
+          if ( $a ne $ref ) {
+            $refCount++;
+          }
+        }
+        if ( $refCount == 2 ) {
+          push @newAlleles, $ref;
+        }
+        elsif ( $refCount == 1 ) {
+          if ( $type eq "DEL" ) {
+            push @newAlleles, "E";
+          }
+          else {
+            push @newAlleles, "H";
+          }
+        }
+        else {
+          if ( $type eq "DEL" ) {
+            push @newAlleles, "D";
+          }
+          else {
+            push @newAlleles, "I";
+          }
+        }
+      }
+
+      my @aCounts = map { $alleleCount{$_} }  ( sort keys %alleleToName );
+      my @aNames  = map { $alleleToName{$_} } ( sort keys %alleleToName );
+
+      print join( "\t",
+        ( @fields[ 0 .. 1 ], $ref, join( ",", @aNames ), join( ",", @aCounts ), $type ) );
+      for ( my $i = 5; $i < @newAlleles; $i++ ) {
+        print "\t$newAlleles[$i]\t1";
+      }
+      print "\n";
+      #say dump { alts => \@alts, lenAlts => \@lenAlts, lenRef => $lenRef };
+      #say dump { aCounts => \@aCounts, aNames => \@aNames, alleleToName => \%alleleToName, alleleCounts => \%alleleCount };
+      #exit;
+    }
+  }
+}
+
+sub getType {
+  my $href       = shift;
+  my $ref        = shift;
+  my $alleleAref = shift;
+
+  my @types = keys %$href;
+
+  if ( scalar @types == 1 ) {
+    return $types[0];
+  }
+  return;
+}
