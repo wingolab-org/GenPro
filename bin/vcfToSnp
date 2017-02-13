@@ -10,6 +10,7 @@ use 5.10.0;
 use warnings;
 use strict;
 use Getopt::Long;
+#use Data::Dump qw/dump/;
 
 our $VERSION = '0.01';
 
@@ -61,7 +62,6 @@ Example Usage
 }
 
 sub vcfToSnp {
-
   my $fh     = *STDIN;
   my $header = <$fh>;
   chomp $header;
@@ -95,7 +95,16 @@ sub vcfToSnp {
       print "\n";
     }
     elsif ( $fields[4] eq "INDEL" ) {
-      # will not handle: 22	17139233	GTATGCA	GTGCA,G	INDEL
+
+      # NOTE:
+      #   - indel handing is challenging
+      #   - vcf insertions are treated by giving the ref base and a string
+      #     for the altnate allele
+      #   - vcf deletions use a string for the reference and a single base for
+      #     the alternate allele
+      #   - the fact that reference base for the genome for a particular
+      #     position may be either a in the reference or alternate allele leads
+      #     to the less than straightforward logic
       my %typeForSite;
       my @newAlleles;
       my $ref     = $fields[2];
@@ -138,36 +147,58 @@ sub vcfToSnp {
 
       for ( my $i = 5; $i < @fields; $i++ ) {
         my @sampleAlleles = split /\|/, $fields[$i];
-        my $refCount = 0;
+        my $altCount = 0;
         for my $a (@sampleAlleles) {
           $alleleCount{$a}++;
           if ( $a ne $ref ) {
-            $refCount++;
+            $altCount++;
           }
         }
-        if ( $refCount == 2 ) {
-          push @newAlleles, $ref;
-        }
-        elsif ( $refCount == 1 ) {
-          if ( $type eq "DEL" ) {
+
+        if ( $type eq "DEL" ) {
+          if ( $altCount == 2 ) {
+            push @newAlleles, $ref;
+          }
+          elsif ( $altCount == 0 && @sampleAlleles == 1 ) {
+            push @newAlleles, $ref;
+
+            # NOTE:
+            #   - hack #1; correcting ref count; when the site is an
+            #     indel but the reference appears to be a single genotype
+            #     bcftools only prints the iupac code for both alleles
+            #     (e.g., G => G|G).
+            $alleleCount{$ref}++;
+          }
+          elsif ( $altCount == 1 ) {
             push @newAlleles, "E";
           }
           else {
-            push @newAlleles, "H";
-          }
-        }
-        else {
-          if ( $type eq "DEL" ) {
             push @newAlleles, "D";
+          }
+          next;
+        }
+
+        if ( $type eq "INS" ) {
+          if ( $altCount == 0 && @sampleAlleles == 1 ) {
+            push @newAlleles, $ref;
+
+            # NOTE:
+            #   - see hack #1; same issue
+            $alleleCount{$ref}++;
+          }
+          elsif ( $altCount == 1 && @sampleAlleles == 2 ) {
+            push @newAlleles, "H";
           }
           else {
             push @newAlleles, "I";
           }
+          next;
         }
+
       }
 
-      my @aCounts = map { $alleleCount{$_} }  ( sort keys %alleleToName );
-      my @aNames  = map { $alleleToName{$_} } ( sort keys %alleleToName );
+      my @aCounts = map { $alleleCount{$_} || 0 } ( sort keys %alleleToName );
+      my @aNames = map { $alleleToName{$_} } ( sort keys %alleleToName );
 
       print join( "\t",
         ( @fields[ 0 .. 1 ], $ref, join( ",", @aNames ), join( ",", @aCounts ), $type ) );
