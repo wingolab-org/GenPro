@@ -202,7 +202,7 @@ sub vcfToSnp {
 
       print join( "\t",
         ( @fields[ 0 .. 1 ], $ref, join( ",", @aNames ), join( ",", @aCounts ), $type ) );
-      for ( my $i = 5; $i < @newAlleles; $i++ ) {
+      for ( my $i = 0; $i < @newAlleles; $i++ ) {
         print "\t$newAlleles[$i]\t1";
       }
       print "\n";
