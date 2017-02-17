@@ -87,12 +87,12 @@ sub vcfToSnp {
       }
       my @alleles = sort keys %alleleCount;
       my @aCounts = map { $alleleCount{$_} } @alleles;
-      my $type = "SNP";
+      my $type    = "SNP";
       if ( $fields[4] eq "MNP" ) {
         $type = "MULTIALLELIC";
       }
       print join "\t", @fields[ 0 .. 2 ], join( ",", @alleles ), join( ",", @aCounts ),
-       $type;
+        $type;
       for ( my $i = 5; $i < @fields; $i++ ) {
         print "\t$fields[$i]\t1";
       }
