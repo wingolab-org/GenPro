@@ -64,13 +64,13 @@ GenPro_download_ucsc_data.pl -d local_hg38 -g hg38
 
 This will perform a dry-run download of hg38 (genome and annotated gene
 coordinates). It relies on `rsync` being installed, which should be present on
-unix, linux, and OS X by default. In the example, the data will be downloaded 
-into `local_hg38` directory, which may be created if it did not already exist. 
-`GenPro_download_ucsc_data.pl` will download knownGenes track and the genome of 
-the organism by default. By default, `GenPro_download_ucsc_data.pl` is set to a 
-dry-run (i.e., no download). Use the `-a` switch to "act", i.e., download the 
-data. Take care when using it since it since it will download from a remote 
-server. 
+unix, linux, and OS X by default. In the example, the data will be downloaded
+into `local_hg38` directory, which may be created if it did not already exist.
+`GenPro_download_ucsc_data.pl` will download knownGenes track and the genome of
+the organism by default. By default, `GenPro_download_ucsc_data.pl` is set to a
+dry-run (i.e., no download). Use the `-a` switch to "act", i.e., download the
+data. Take care when using it since it since it will download from a remote
+server.
 
 
 - Generate a binary index of the genome for the organism.
@@ -89,10 +89,10 @@ done;
 ```
 
 - Make reference proteins for the organism.
-  - `GenPro_make_refprotdb.pl` uses the indexed binary annotation and creates 
+  - `GenPro_make_refprotdb.pl` uses the indexed binary annotation and creates
   all proteins for a given chromosome.
   - A helper script `runnall_make_refprot.sh` automates this for SGE.
-    - e.g., `qsub -v USER -v PATH -cwd -t 1-26 make_refprot.sh <genome> <reference_proteins_fasta>`
+    - e.g., `qsub -v USER -v PATH -cwd -t 1-26 runnall_make_refprot.sh <genome> <binary genome index> <output dir>`
 
 
 - Make the personal proteins for the sample.
@@ -100,16 +100,21 @@ done;
   `GenPro_make_perprotdb2.pl`
   - `GenPro_make_perprotdb1.pl` creates a per chromosome database of all relevant
   (i.e., missense variants) for all individuals in the snp file.
-  - the input file is a 'snp' format; to convert vcf to snp see
-  [vcf tools](https://github.com/vcftools) for helper scripts.
+  - the input file is a 'snp' format.
+      - To convert vcf to 'snp' format you will need [bcftools](https://samtools.github.io/bcftools/) installed.
+      - Use the supplied vcfToSnp script, .e.g,
+
+```
+bcftools query -H -f '%CHROM\t%POS\t%REF\t%ALT\t%TYPE[\t%IUPACGT]\n' file.vcf | vcfToSnp > file.snp
+```
+
   - `GenPro_make_perprotdb2.pl` creates a finished personal protein database for
   a particular sample. The json data encodes just the variant protein information
   while the fasta file encodes the reference and variant proteins.
-  - Creating the final db is on a per sample basis, but it can take quite a 
-  while. It depends on how many proteins have multiple variants. It is especially 
-  slow for proteins with >10 variants. For example, if you have a protein with 
-  20 substitutions, there are 20! permutations. By design, all 20! proteins 
+  - Creating the final db is on a per sample basis, but it can take quite a
+  while. It depends on how many proteins have multiple variants. It is especially
+  slow for proteins with >10 variants. For example, if you have a protein with
+  20 substitutions, there are 20! permutations. By design, all 20! proteins
   will be considered and only the proteins that contribute unique peptides will
-  be retained. Any protien with more than 20 sites will have all variants 
-  inserted into the reference protein without performing any permutation. 
-
+  be retained. Any protien with more than 20 sites will have all variants
+  inserted into the reference protein without performing any permutation.
