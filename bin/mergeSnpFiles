@@ -1,0 +1,154 @@
+#!/usr/bin/env perl
+# Name:           mergeSnp.pl
+# Date Created:   2017-02-17T10:23:35
+# Date Modified:  2017-02-17T10:23:35
+# By:             TS Wingo
+#
+# Description:    Combine snpfiles
+
+use 5.10.0;
+use warnings;
+use strict;
+
+# common
+use Getopt::Long;
+use IO::Zlib;
+use Path::Tiny;
+
+# debugging
+use Data::Dump qw/ dump /;
+use DDP;
+
+# rarely used
+
+# variables
+my ( $act, $force, $verbose, $fileName, $outExt, $addPrefix );
+
+# get options
+die "Usage: $0 [--addPrefix <chrom prefix>] -o <outExt> <snp files>\n"
+  unless GetOptions(
+  'addPrefix|p=s' => \$addPrefix,
+  'out|o=s'       => \$outExt,
+  )
+  and $outExt
+  and @ARGV > 0;
+
+###############################################################################
+# main
+###############################################################################
+
+mergeSnp( \@ARGV, $outExt );
+
+###############################################################################
+# subroutines
+###############################################################################
+
+sub mergeSnp {
+  my $filesAref = shift;
+  my $outExt    = shift;
+
+  my $outFh = path("$outExt.snp")->filehandle(">");
+
+  my $idsHref;
+  my $prtHeader = 1;
+
+  for my $f (@$filesAref) {
+    say "starting '$f'";
+    my $fh = mustOpen($f);
+
+    my $headerTxt = <$fh>;
+    chomp $headerTxt;
+    my @header = split /\t/, $headerTxt;
+    p @header;
+
+    ( my $err, $idsHref ) = checkIds( $idsHref, [ @header[ 6 .. $#header ] ] );
+    p $idsHref;
+    if ($err) {
+      printf( "Error: %s in '%s'\n", $err, $f );
+      exit(1);
+    }
+    if ( $prtHeader == 1 ) {
+      my @prtIds = ( sort keys %$idsHref );
+      say {$outFh} join( "\t", ( @header[ 0 .. 5 ], join( "\t\t", @prtIds ) ) );
+      $prtHeader = 0;
+    }
+
+    while (<$fh>) {
+      chomp $_;
+      my @fields = split /\t/, $_;
+      my %data = map { $_ => $fields[ $idsHref->{$_} ] } ( sort keys %$idsHref );
+      my @prt = map { "$data{$_}\t1" } ( sort keys %data );
+      my $chr;
+      if ($addPrefix) {
+        $chr = $addPrefix . $fields[0];
+      }
+      else {
+        $chr = $fields[0];
+      }
+      say {$outFh} join( "\t", ( $chr, @fields[ 1 .. 5 ], @prt ) );
+    }
+  }
+}
+
+sub checkIds {
+  my $idsHref = shift;
+  my $idsAref = shift;
+
+  my $data = { idsHref => $idsHref, idsAref => $idsAref };
+  my @ids;
+
+  for my $id (@$idsAref) {
+    if ( defined $id && $id ne "" ) {
+      my @fields = split /\:/, $id;
+      $fields[0] =~ s/\A\[\d+\]//;
+      push @ids, $fields[0];
+    }
+  }
+
+  if ( !defined $idsHref ) {
+    my %ids;
+    my $j = 6;
+    for ( my $i = 0; $i < @ids; $i++ ) {
+      $ids{ $ids[$i] } = $j;
+      $j += 2;
+    }
+    return ( undef, \%ids );
+  }
+
+  my $idCount = 0;
+  for my $id (@ids) {
+    if ( exists $idsHref->{$id} ) {
+      $idCount++;
+    }
+  }
+  if ( $idCount == scalar keys %$idsHref && scalar @ids == scalar keys %$idsHref ) {
+    return ( undef, $idsHref );
+  }
+
+  my $msg = sprintf( "Found %d ids, found %d wanted ids, matching ids %d.",
+    scalar @ids, scalar keys %$idsHref, $idCount, );
+  return ( $msg, undef );
+}
+
+sub mustOpen {
+  my $file = shift;
+
+  if ( $file =~ m/\.gz\z/xm ) {
+    my $fh = new IO::Zlib;
+    if ( !-e $file ) {
+      die "Error: Cannot open '$file' - file does not exist.\n";
+    }
+    elsif ( !$fh->open( $file, "rb" ) ) {
+      die "Error: Cannot open '$file' - zlib error.\n";
+    }
+    return $fh;
+  }
+  elsif ( $file =~ m/\.(ann|snp|txt|tsv|csv)\z/xm ) {
+    return path($file)->filehandle();
+  }
+  else {
+    say STDERR "Error: Cannot open '$file', unrecognized file extension.";
+    exit(1);
+  }
+}
+
