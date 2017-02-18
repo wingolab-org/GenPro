@@ -9,17 +9,12 @@
 use 5.10.0;
 use warnings;
 use strict;
-
-# common
 use Getopt::Long;
 use IO::Zlib;
 use Path::Tiny;
+#use Data::Dump qw/ dump /;
 
-# debugging
-use Data::Dump qw/ dump /;
-use DDP;
-
-# rarely used
+our $VERSION = '0.01';
 
 # variables
 my ( $act, $force, $verbose, $fileName, $outExt, $addPrefix );
@@ -59,7 +54,6 @@ sub mergeSnp {
     my $headerTxt = <$fh>;
     chomp $headerTxt;
     my @header = split /\t/, $headerTxt;
-    p @header;
 
     ( my $err, $idsHref ) = checkIds( $idsHref, [ @header[ 6 .. $#header ] ] );
     p $idsHref;
