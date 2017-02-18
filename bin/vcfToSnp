@@ -75,7 +75,7 @@ sub vcfToSnp {
   while (<$fh>) {
     chomp $_;
     my @fields = split "\t", $_;
-    if ( $fields[4] eq "SNP" || $fields[3] eq "MNP" ) {
+    if ( $fields[4] eq "SNP" || $fields[4] eq "MNP" ) {
       my %alleleCount;
       for ( my $i = 5; $i < @fields; $i++ ) {
         my $allelesAref = $iupac{ $fields[$i] };
@@ -87,8 +87,12 @@ sub vcfToSnp {
       }
       my @alleles = sort keys %alleleCount;
       my @aCounts = map { $alleleCount{$_} } @alleles;
+      my $type    = "SNP";
+      if ( $fields[4] eq "MNP" ) {
+        $type = "MULTIALLELIC";
+      }
       print join "\t", @fields[ 0 .. 2 ], join( ",", @alleles ), join( ",", @aCounts ),
-        $fields[4];
+        $type;
       for ( my $i = 5; $i < @fields; $i++ ) {
         print "\t$fields[$i]\t1";
       }
