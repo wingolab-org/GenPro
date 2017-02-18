@@ -5,7 +5,7 @@
 #                 create_db.pl and download_ucsc_data.pl
 #
 # Date Created:   Sat Aug 23 20:12:01 2014
-# Date Modified:  2016-05-15
+# Date Modified:  2017-02-18
 # By:             TS Wingo
 
 use 5.10.0;
@@ -16,10 +16,11 @@ use Cpanel::JSON::XS;
 use Fcntl qw(:DEFAULT :seek);
 use Getopt::Long;
 use Path::Tiny;
+use GenPro qw/ CleanChr /;
 
 our $VERSION = '0.01';
 
-my ( $chr, $out_path, $idx_path, $db_name, $description_file, $verbose );
+my ( $chr, $out_path, $idx_path, $db_name, $description_file, $verbose, $debug );
 my ( %proteins, %transcripts, %aa_pos, %gene_symb_descipt );
 
 #<<< No perltidy
@@ -284,34 +285,43 @@ sub WriteRefProt {
   close $fasta_fh;
 }
 
-# CleanChr takes a string, assumed to be formatted like chrX, Chr1, 15, or 24
-# and returns 'chr1' .. 'chr22', 'chrX', etc.
-# Using plink as a guide for num -> letter chromosomes:
-# http://pngu.mgh.harvard.edu/~purcell/plink/data.shtml
-# The autosomes should be coded 1 through 22. The following other codes can be
-# used to specify other chromosome types:
-#    X    X chromosome                    -> 23
-#    Y    Y chromosome                    -> 24
-#    XY   Pseudo-autosomal region of X    -> 25
-#    MT   Mitochondrial                   -> 26
-sub CleanChr {
-  my $chr = shift;
-
-  my @chrs = ( 1 .. 22, 'X', 'Y', 'M' );
-  my %chrOk = map { $_ => 1 } (@chrs);
-  my %chrNumToLetter = ( 23 => 'X', 24 => 'Y', 26 => 'M' );
-
-  $chr = uc($chr);
-  $chr =~ s/\ACHR//xm;
-  if ( exists $chrOk{$chr} ) {
-    return "chr" . $chr;
+# Log takes and array of strings and uses the first element to handle the
+# message reporting - 1) Error, probably a user/input error (print and exit),
+# 2) Fatal - probably an internal error, print and croak, 3) Debug is
+# something that is printed if the global debug is true, and 4) Warn prints
+# a message to standard out regardless of the level of verbosity. Anything else
+# will be printed depending on whether the gloabal verbose value is set.
+sub Log {
+  my $type = shift;
+  if ( $type eq 'Error' ) {
+    my $msg = join ": ", $type, ( join " ", @_ );
+    say STDERR $msg;
+    exit(1);
   }
-  elsif ( exists $chrNumToLetter{$chr} ) {
-    return "chr" . $chrNumToLetter{$chr};
+  elsif ( $type eq 'Fatal' ) {
+    my $msg = join ": ", $type, ( join " ", @_ );
+    croak $msg;
+  }
+  elsif ( $type eq 'Warn' ) {
+    my $msg = join ": ", $type, ( join " ", @_ );
+    say STDERR $msg;
+  }
+  elsif ( $type eq 'Info' ) {
+    if ($verbose) {
+      my $msg = join ": ", $type, ( join " ", @_ );
+      say STDERR $msg;
+    }
+  }
+  elsif ( $type eq 'Debug' ) {
+    if ($debug) {
+      my $msg = join ": ", $type, ( join " ", @_ );
+      say STDERR $msg;
+    }
   }
   else {
-    my $msg = "Error: unrecognized chromosome: $chr";
-    say $msg;
-    exit(1);
+    if ($verbose) {
+      my $msg = join " ", $type, @_;
+      say STDERR "Info: ", $msg;
+    }
   }
 }

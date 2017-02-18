@@ -3,7 +3,7 @@
 # Description:    reads the dbs created by `make_perprotdb1.pl` and creates
 #                 a single json and fasta record for a specified individual
 # Date Created:   Wed Aug 27 21:09:45 2014
-# Date Modified:  2016-05-15
+# Date Modified:  2017-02-18
 # By:             TS Wingo
 
 use 5.10.0;
@@ -17,6 +17,7 @@ use Digest::SHA qw/sha1_hex/;
 use Getopt::Long;
 use Path::Tiny;
 use Scalar::Util qw/reftype/;
+use GenPro qw/ CleanChr /;
 
 our $VERSION = '0.01';
 

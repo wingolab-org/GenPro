@@ -29,8 +29,8 @@ use Scalar::Util qw/reftype/;
 #use Type::Params qw/ compile /;
 #use Types::Standard qw/ Str ArrayRef HashRef RegexpRef Int Num /;
 
-our @EXPORT    = qw/ /;
-our @EXPORT_OK = qw/ /;
+our @EXPORT    = qw/ CleanChr /;
+our @EXPORT_OK = qw/ CleanChr /;
 
 # Package variables
 my ( %hIUPAC, %codon_2_aa );
@@ -68,3 +68,35 @@ $hIUPAC{W}{T} = "A";
 $hIUPAC{Y}{C} = "T";
 $hIUPAC{Y}{T} = "C";
 #>>>
+
+# CleanChr takes a string, assumed to be formatted like chrX, Chr1, 15, or 24
+# and returns 'chr1' .. 'chr22', 'chrX', etc.
+# Using plink as a guide for num -> letter chromosomes:
+# http://pngu.mgh.harvard.edu/~purcell/plink/data.shtml
+# The autosomes should be coded 1 through 22. The following other codes can be
+# used to specify other chromosome types:
+#    X    X chromosome                    -> 23
+#    Y    Y chromosome                    -> 24
+#    XY   Pseudo-autosomal region of X    -> 25
+#    MT   Mitochondrial                   -> 26
+sub CleanChr {
+  my $chr = shift;
+
+  my @chrs = ( 1 .. 22, 'X', 'Y', 'M' );
+  my %chrOk = map { $_ => 1 } (@chrs);
+  my %chrNumToLetter = ( 23 => 'X', 24 => 'Y', 26 => 'M' );
+
+  $chr = uc($chr);
+  $chr =~ s/\ACHR//xm;
+  if ( exists $chrOk{$chr} ) {
+    return "chr" . $chr;
+  }
+  elsif ( exists $chrNumToLetter{$chr} ) {
+    return "chr" . $chrNumToLetter{$chr};
+  }
+  else {
+    my $msg = "Error: unrecognized chromosome: $chr";
+    say $msg;
+    exit(1);
+  }
+}

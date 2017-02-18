@@ -4,7 +4,7 @@
 #                 protein database; use in conjunction with make_refprotdb.pl,
 #                 create_db.pl and download_ucsc_data.pl
 # Date Created:   Wed Aug 27 21:09:45 2014
-# Date Modified:  2016-05-15
+# Date Modified:  2017-02-18
 # By:             TS Wingo
 
 use 5.10.0;
@@ -16,12 +16,13 @@ use DB_File;
 use Fcntl qw(:DEFAULT :seek);
 use Getopt::Long;
 use Path::Tiny;
+use GenPro qw/ CleanChr /;
 
 our $VERSION = '0.01';
 
 my (
-  %db,       %hIUPAC,  $db_name, $path_bin,     $barcode_file,
-  $snp_file, $verbose, $out_dir, $wantedIdFile, $wanted_chr,
+  %db,      %hIUPAC,  $db_name,      $path_bin,   $barcode_file, $snp_file,
+  $verbose, $out_dir, $wantedIdFile, $wanted_chr, $debug,
 );
 
 #<<< No perltidy
@@ -561,7 +562,9 @@ sub ReadWantedIdFile {
 
 # Log takes and array of strings and uses the first element to handle the
 # message reporting - 1) Error, probably a user/input error (print and exit),
-# 2) Fatal - probably an internal error, print and croak, 3) Anything else
+# 2) Fatal - probably an internal error, print and croak, 3) Debug is
+# something that is printed if the global debug is true, and 4) Warn prints
+# a message to standard out regardless of the level of verbosity. Anything else
 # will be printed depending on whether the gloabal verbose value is set.
 sub Log {
   my $type = shift;
@@ -574,8 +577,18 @@ sub Log {
     my $msg = join ": ", $type, ( join " ", @_ );
     croak $msg;
   }
+  elsif ( $type eq 'Warn' ) {
+    my $msg = join ": ", $type, ( join " ", @_ );
+    say STDERR $msg;
+  }
   elsif ( $type eq 'Info' ) {
     if ($verbose) {
+      my $msg = join ": ", $type, ( join " ", @_ );
+      say STDERR $msg;
+    }
+  }
+  elsif ( $type eq 'Debug' ) {
+    if ($debug) {
       my $msg = join ": ", $type, ( join " ", @_ );
       say STDERR $msg;
     }
