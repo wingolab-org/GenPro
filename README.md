@@ -59,18 +59,18 @@ they are installed you can install/update with:
 - Download genomic data for a particular organism.
 
 ```
-GenPro_download_ucsc_data.pl -d local_hg38 -g hg38
+GenPro_download_ucsc_data.pl -a -d hg38 -g hg38
 ```
 
 This will perform a dry-run download of hg38 (genome and annotated gene
 coordinates). It relies on `rsync` being installed, which should be present on
-unix, linux, and OS X by default. In the example, the data will be downloaded
-into `local_hg38` directory, which may be created if it did not already exist.
-`GenPro_download_ucsc_data.pl` will download knownGenes track and the genome of
-the organism by default. By default, `GenPro_download_ucsc_data.pl` is set to a
-dry-run (i.e., no download). Use the `-a` switch to "act", i.e., download the
-data. Take care when using it since it since it will download from a remote
-server.
+unix, linux, and OS X by default. In the example, the data will be downloaded 
+into `hg38` directory, which may be created if it did not already exist. 
+`GenPro_download_ucsc_data.pl` will download knownGenes track and the genome of 
+the organism by default. By default, `GenPro_download_ucsc_data.pl` is set to a 
+dry-run (i.e., no download). Use the `--act` switch to "act", i.e., download the 
+data. Take care when using it since it since it will download from a remote 
+server. 
 
 
 - Generate a binary index of the genome for the organism.
@@ -84,7 +84,7 @@ server.
 
 ```
 for ((i=1;i<27;i++)); do
-  GenPro_create_db.pl -a -g hg38 -c $i --genedir local_hg38/gene --geneset knownGene -f local_hg38/chr -o hg38/idx;
+  GenPro_create_db.pl -g hg38 -c $i --genedir hg38/gene --geneset knownGene -f hg38/chr -o hg38/idx;
 done;
 ```
 
