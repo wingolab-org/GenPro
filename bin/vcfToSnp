@@ -65,7 +65,7 @@ sub vcfToSnp {
   my $fh     = *STDIN;
   my $header = <$fh>;
   chomp $header;
-  my @headerCols = split "\t", $header;
+  my @headerCols = split '\t', $header;
   print "Fragment\tPosition\tReference\tAlleles\tAllele_Counts\tType";
   for ( my $i = 5; $i < @headerCols; $i++ ) {
     print "\t$headerCols[$i]\t";
@@ -74,8 +74,8 @@ sub vcfToSnp {
 
   while (<$fh>) {
     chomp $_;
-    my @fields = split "\t", $_;
-    if ( $fields[4] eq "SNP" || $fields[4] eq "MNP" ) {
+    my @fields = split '\t', $_;
+    if ( $fields[4] eq 'SNP' || $fields[4] eq 'MNP' ) {
       my %alleleCount;
       for ( my $i = 5; $i < @fields; $i++ ) {
         my $allelesAref = $iupac{ $fields[$i] };
@@ -87,9 +87,9 @@ sub vcfToSnp {
       }
       my @alleles = sort keys %alleleCount;
       my @aCounts = map { $alleleCount{$_} } @alleles;
-      my $type    = "SNP";
-      if ( $fields[4] eq "MNP" ) {
-        $type = "MULTIALLELIC";
+      my $type    = 'SNP';
+      if ( $fields[4] eq 'MNP' ) {
+        $type = 'MULTIALLELIC';
       }
       print join "\t", @fields[ 0 .. 2 ], join( ",", @alleles ), join( ",", @aCounts ),
         $type;
@@ -112,7 +112,7 @@ sub vcfToSnp {
       my %typeForSite;
       my @newAlleles;
       my $ref     = $fields[2];
-      my @alts    = split ",", $fields[3];
+      my @alts    = split ',', $fields[3];
       my $lenRef  = length $ref;
       my @lenAlts = map { length $_ } @alts;
       my ( %alleleToName, %alleleCount );
@@ -134,13 +134,16 @@ sub vcfToSnp {
         say STDERR "Error: Found evidence for del and ins at site: $_";
         next;
       }
-      if ( $type eq "DEL" ) {
+      if ( $type eq 'DEL' ) {
         my @refStr = split '', $ref;
         for ( my $i = 0; $i < @alts; $i++ ) {
           $alleleToName{ $alts[$i] } = "-" . ( $lenRef - $lenAlts[$i] );
           $alleleToName{$ref} = $refStr[0];
         }
         $ref = $refStr[0];
+
+        # shift position to accomidate difference in vcf vs snp file spec
+        $fields[1]++;
       }
       else {
         for ( my $i = 0; $i < @alts; $i++ ) {
@@ -150,7 +153,7 @@ sub vcfToSnp {
       }
 
       for ( my $i = 5; $i < @fields; $i++ ) {
-        my @sampleAlleles = split /\|/, $fields[$i];
+        my @sampleAlleles = split '|', $fields[$i];
         my $altCount = 0;
         for my $a (@sampleAlleles) {
           $alleleCount{$a}++;
@@ -159,7 +162,7 @@ sub vcfToSnp {
           }
         }
 
-        if ( $type eq "DEL" ) {
+        if ( $type eq 'DEL' ) {
           if ( $altCount == 2 ) {
             push @newAlleles, $ref;
           }
@@ -182,7 +185,7 @@ sub vcfToSnp {
           next;
         }
 
-        if ( $type eq "INS" ) {
+        if ( $type eq 'INS' ) {
           if ( $altCount == 0 && @sampleAlleles == 1 ) {
             push @newAlleles, $ref;
 
