@@ -23,12 +23,13 @@ our $VERSION = '0.01';
 my @chrs = map { "chr$_" } ( 1 .. 22, "M", "X", "Y" );
 my ( $dir_name, $act, $verbose, $genome_name );
 
-die "Usage: $0 [--act] -d <target_dir> -g <genome to download>\n"
+die
+  "Usage: $0 [--act] [--verbose] --dir <target_dir> --genome <genome to download>\n"
   unless GetOptions(
-  'v|verbose'  => \$verbose,
-  'a|act'      => \$act,
-  'd|dir=s'    => \$dir_name,
-  'g|genome=s' => \$genome_name
+  'verbose|v'  => \$verbose,
+  'act|a'      => \$act,
+  'dir|d=s'    => \$dir_name,
+  'genome|g=s' => \$genome_name
   )
   and $dir_name
   and $genome_name;

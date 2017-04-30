@@ -9,9 +9,11 @@ package GenPro;
 our $VERSION = '0.01';
 
 # Dependencies
+
+use 5.10.0;
 use strict;
 use warnings;
-use Exporter 5.57 (qw/import/);
+use Exporter 5.57 (qw/ import /);
 use Carp;
 use Cpanel::JSON::XS;
 use DB_File;
@@ -24,7 +26,7 @@ use Getopt::Long;
 use IO::Uncompress::Gunzip qw/ $GunzipError /;
 use Pod::Usage;
 use Path::Tiny;
-use Scalar::Util qw/reftype/;
+use Scalar::Util qw/ reftype /;
 
 #use Type::Params qw/ compile /;
 #use Types::Standard qw/ Str ArrayRef HashRef RegexpRef Int Num /;

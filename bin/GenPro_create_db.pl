@@ -5,7 +5,7 @@
 #       I made some fixes to the original code, mostly in how it handles the
 #       construction of the transcript and sequencing sequence. Otherwise, I
 #       only made slight modifications, mostly putting things into functions,
-#       how the data is packed, and how it expects the gene data, which was
+#       how the data is packed, and how it expects the gene data, which has
 #       been standardized to enable use with knownGene and refGene tracks from
 #       UCSC. No further development is expected on this version. -TS Wingo
 

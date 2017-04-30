@@ -64,7 +64,7 @@ die "Usage: $0
     --l|location <binary genome directory>
     --n|name <genome name (e.g., hg19, mm10, etc.)>
     --o|out <output directory>
-  [ --c|chr <chrom name>]
+  [ --c|chr <chrom name> ]
   [ --b|barcode <barcode Id Lookup (e.g., SL99999 => myId1> ]
   [ --w|wanted <file with Ids to include]\n"
   unless GetOptions(

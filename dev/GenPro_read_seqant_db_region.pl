@@ -8,13 +8,16 @@
 # Date Modified:  Sat Aug 23 20:12:01 2014
 # By:             TS Wingo
 
+use 5.10.0;
+use strict;
+use warnings;
+
 use autodie;
 use Cwd;
 use Cpanel::JSON::XS;
 use Digest::MD5;
 use Fcntl qw(:DEFAULT :seek);
 use Getopt::Long;
-use Modern::Perl '2013';
 
 my ( $db_location, $db_name, $print_all, $pos_from, $pos_to, $chr );
 #<<< No perltidy
