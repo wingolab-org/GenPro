@@ -9,7 +9,7 @@ RUN apt-get update && apt-get update && apt-get install -y \
 
 # install htslib, which is required for bcftools
 WORKDIR /app
-RUN git clone git://github.com/samtools/htslib.git
+RUN git clone https://github.com/samtools/htslib.git
 WORKDIR /app/htslib
 RUN autoheader  && \
   autoconf      && \
