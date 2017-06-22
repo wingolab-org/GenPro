@@ -424,19 +424,16 @@ sub ReadSnpFile {
   my %okChr = map { $_ => 1 } @$okChrsAref;
 
   my $fh = path($file)->filehandle("<");
-  my ( @ids, %header );
+
+  my $headerLine = <$fh>;
+  chomp $headerLine;
+  my @headerFields = split '\t', $headerLine;
+  my %header = map { $headerFields[$_] => $_ } ( 0 .. $snpHeaderFieldEnd );
+  my @ids = ProcessIds( \@headerFields, $wanted_id_href, $id_lookup_href );
+
   while (<$fh>) {
     chomp $_;
-    my @fields = split /\t/, $_;
-
-    # proc header
-    if ( !%header ) {
-      %header = map { $fields[$_] => $_ } ( 0 .. $snpHeaderFieldEnd );
-      @ids = ProcessIds( \@fields, $wanted_id_href, $id_lookup_href );
-      next;
-    }
-
-    # proc data
+    my @fields = split '\t', $_;
     my %data = map { $_ => $fields[ $header{$_} ] } ( keys %header );
     checkSnpData( \%data, $. );
     my $chr  = $data{Fragment};
@@ -463,6 +460,9 @@ sub ReadSnpFile {
       my $prob = $fields[ $i + 1 ];
       if ( !defined $geno || !defined $prob ) {
         Log( "Error", "Id: '$id' has no genotype or probability." );
+      }
+      if ( $geno eq $ref ) {
+        next;
       }
       if ( $prob >= 0.95 ) {
         my $min_allele = $hIUPAC{$geno}{ $data{Reference} };
