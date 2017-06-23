@@ -40,10 +40,12 @@ docker run -it -v $(pwd):/GenProData genpro bash
 ### Installing on a unix/linux
 
 The approach is:
-1. Install [local::lib](https://metacpan.org/pod/local::lib).
-2. Install  [App::cpanminus](https://metacpan.org/pod/App::cpanminus).
+1. Install [local::lib](https://metacpan.org/pod/local::lib), which allows 
+installation of GenPro (and other perl packages) without using `sudo`.
+2. Install  [App::cpanminus](https://metacpan.org/pod/App::cpanminus), which
+simplifies and automates the installation of perl packages.
 3. Clone the GenPro repository.
-4. Install the prebuilt GenPro package in the repository.
+4. Install the prebuilt GenPro package in the repository using `cpanm`.
 
 Install [`local::lib`](https://metacpan.org/pod/local::lib) by downloading the
 latest tarball and unpack it. See the
@@ -60,12 +62,16 @@ make test && make install
 ```
 
 Install [`App::cpanminus`](https://metacpan.org/pod/App::cpanminus).
+
+Example:
 ```
 curl -L http://cpanmin.us | perl - App::cpanminus
 ```
 
-Install GenPro with `cpanm`, which will automatically install any uninstalled
-dependencies.
+Clone the GenPro repository with [`git`](https://git-scm.com). Install GenPro with 
+`cpanm`, which will automatically install any needed dependencies.
+
+Example:
 ```
 git clone https://github.com/wingolab/GenPro.git
 cd GenPro
@@ -73,8 +79,10 @@ cpanm GenPro.tar.gz
 ```
 
 An alternative approach is clone the repository, unpack the GenPro.tar.gz
-tarball and install it manually. This will likely require using `sudo`,
-depending on how Perl is setup.
+tarball and install it manually. Unless `local::lib` is installed, this 
+approach will require using `sudo`.
+
+Example:
 ```
 git clone https://github.com/wingolab/GenPro.git
 cd GenPro
@@ -86,6 +94,32 @@ make install
 ```
 
 ## Usage
+
+### Memory requirements
+
+The two programs that require the most memory are `GenPro_create_db.pl` and
+`GenPro_make_perprotdb1.pl`. For `GenPro_create_db.pl`, the memory 
+requirement scales with genome size and gene density.
+For `GenPro_make_perprotdb1.pl`, the size of the reference protein database and
+the number of samples raise the memory requirement.
+
+The table below gives representative memory consumption. The WGS samples were 
+obtained from 1000genomes phase1 (hg19) `vcf` files and converted to the `snp` 
+format for GenPro using `vcfToSnp`.
+
+```
+--------------------------------------------------------------------------------
+program                   | perl    | memory use | processed
+--------------------------------------------------------------------------------
+GenPro_create_db.pl       | v5.16.3 | 18.8 Gb    | hg38, chromosome 1
+--------------------------------------------------------------------------------
+GenPro_make_refprotdb.pl  | v5.16.3 | 795.7 Mb   | hg38, chromosome 1
+--------------------------------------------------------------------------------
+GenPro_make_perprotdb1.pl | v5.16.3 | 21.5 Gb    | 50 HapMap WGS, phase 1
+--------------------------------------------------------------------------------
+GenPro_make_perprotdb2.pl | v5.16.3 | 603 Mb     | HapMap NA06994, phase 1
+--------------------------------------------------------------------------------
+```
 
 ### 1. Download genomic data for a particular organism.
 
@@ -134,14 +168,12 @@ qsub -v USER -v PATH -cwd -t 1-26 runnall_make_refprot.sh \
 ```
 
 ### 4.  Make the personal proteins for the sample.
-- This is a 2-step process using `GenPro_make_perprotdb1.pl` and
+- This is a 2-step process that uses `GenPro_make_perprotdb1.pl` and
   `GenPro_make_perprotdb2.pl`.
 - `GenPro_make_perprotdb1.pl` creates a per chromosome database of all relevant
   (i.e., nonsense/missense variants) for each sample in the snp file.
-- To convert `vcf` to `snp` you will need [bcftools](https://samtools.github.io/bcftools/) installed. Use the helper script, `sh/vcfToSnp.sh`, to perform the conversion.
 - `GenPro_make_perprotdb2.pl` creates a finished personal protein database for
-  each sample.
-  -It provides two outputs:
+  each sample. It provides two outputs:
     1. A json-encoded file that enumerates the variant protein information
     2. A fasta file with all full-length reference and variant proteins, which
     may be used as input for a proteomics search program.
@@ -152,3 +184,8 @@ qsub -v USER -v PATH -cwd -t 1-26 runnall_make_refprot.sh \
   will be considered and only the proteins that contribute unique peptides will
   be retained. Any protein with more than 20 sites will have all variants
   inserted into the reference protein without performing any permutation.
+- *To begin*, you will need to have genotype calls in the `snp` file format. To 
+convert `vcf` to `snp` format you will need 
+[bcftools](https://samtools.github.io/bcftools/) installed. The helper script, 
+`bin/vcfToSnp`, calls `bcftools` internally so `bcftools` will need to be in 
+your path.
