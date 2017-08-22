@@ -124,18 +124,18 @@ GenPro_make_perprotdb2.pl | v5.16.3 | 603 Mb     | HapMap NA06994, phase 1
 ### 1. Download genomic data for a particular organism.
 
 ```
-GenPro_download_ucsc_data.pl -a -d hg38 -g hg38
+GenPro_download_ucsc_data.pl -d hg38 -g hg38
 ```
 
-This will perform a dry-run download of hg38 (genome and annotated gene
-coordinates). It relies on `rsync` being installed, which should be present on
-unix, linux, and OS X by default. In the example, the data will be downloaded
+The above command will perform a dry-run download of hg38 (genome and annotated
+gene coordinates). It relies on `rsync` being installed, which should be present
+on unix, linux, and OS X by default. In the example, the data will be downloaded
 into `hg38` directory, which may be created if it did not already exist.
 `GenPro_download_ucsc_data.pl` will download knownGenes track and the genome of
 the organism by default. By default, `GenPro_download_ucsc_data.pl` is set to a
-dry-run (i.e., no download). Use the `--act` switch to "act", i.e., download the
-data. Take care when using it since it since it will download from a remote
-server.
+dry-run (i.e., no download). Use the `--act` or `-a` switch to "act", i.e.,
+download the data. Take care when using it since it since it will download from
+a remote server.
 
 
 ### 2. Generate a binary index of the genome for the organism.
